@@ -12,10 +12,11 @@
 
 This project translates EASA drone regulations (EU) 2019/947 and U-space regulation (EU) 2021/664 into a formal, machine-readable rulebook expressed in Signal Temporal Logic (STL), structured according to the priority-based rulebook framework of Censi et al. (2019).
 
-The repository contains two deliverables:
+The project contains three practical outputs:
 
-- **Rulebook** (`STL_Rules.pdf`, `Rules_Plain_Language.pdf`) — 37+ rules extracted from EASA regulation, formalized in STL with 9 priority tiers.
+- **Rulebook exports** (`STL_Rules.pdf`, `Rules_Plain_Language.pdf`) — 37+ rules extracted from EASA regulation, formalized in STL with 9 priority tiers. These PDF exports are ignored by git so they can be regenerated or shared separately.
 - **Simulation** (`drone_simulation.py`) — A 3D animated compliance monitor and STL-guided trajectory optimiser running on real Zürich OSM building data.
+- **Scenario pack** (`scenario/`) — reusable synthetic maps for illustrating selected rules, rule priorities, naive violations, and compliant trajectories.
 
 ---
 
@@ -45,6 +46,33 @@ The simulation demonstrates the rulebook on a parcel delivery mission over centr
 
 ---
 
+## Scenario pack
+
+The `scenario/` package provides small synthetic scenes that are easier to present than the full Zürich map. Each scenario is a class that combines:
+
+- a **scene**: map size, start/delivery points, restricted areas, crowd zones, quiet zones, emergency zones, or safe landing areas;
+- a **rule set**: 4-5 rules selected from the rulebook;
+- a naive path and a compliant path generated with the same robustness-monitoring framework.
+
+Current scenarios:
+
+| Scenario | Main idea | Rules illustrated |
+|---|---|---|
+| `crowd_noise_night` | Crowd zones, residential quiet zone, day-to-night transition | crowd standoff, altitude, speed, night light, noise |
+| `emergency_reconfiguration` | Static no-fly zone plus emergency area active mid-flight | emergency exclusion, geofence, altitude, no-fly zone, speed |
+| `battery_abort` | Correct behavior is landing safely instead of completing delivery | geofence, no-fly zone, altitude, battery landing, speed |
+
+Scenario code is split into reusable pieces:
+
+```text
+scenario/core.py                  # ScenarioBase, rules, monitoring, optimizer, report, animation
+scenario/scene.py                 # Scene and Zone data models + Plotly scene geometry
+scenario/scenarios/*.py           # One scenario class per file
+scenario/scenario_simulation.py   # CLI runner
+```
+
+---
+
 ## Setup
 
 ```bash
@@ -52,9 +80,21 @@ pip install plotly numpy scipy
 python drone_simulation.py
 ```
 
+Run all synthetic scenarios:
+
+```bash
+python scenario/scenario_simulation.py
+```
+
+Run one scenario:
+
+```bash
+python scenario/scenario_simulation.py --scenario crowd_noise_night
+```
+
 Python 3.10+ required. The simulation fetches live building data from OpenStreetMap on startup (~5 seconds). The optimiser runs automatically after the buildings load (~5–10 seconds).
 
-The output is an interactive HTML page that opens in your browser, plus a compliance comparison table printed to the console.
+The main simulation opens an interactive Plotly page in your browser and prints a compliance table. The scenario runner writes interactive HTML files to `scenario/output/` and prints the same style of compliance comparison.
 
 ---
 
@@ -62,8 +102,9 @@ The output is an interactive HTML page that opens in your browser, plus a compli
 
 ```
 drone_simulation.py      # Main simulation — monitoring + STL optimiser
-STL_Rules.pdf            # Formal STL rulebook (9 tiers, 37+ rules)
-Rules_Plain_Language.pdf # Natural language rules extracted from EASA regulation
+scenario/                # Synthetic scenario framework and scenario classes
+STL_Rules.pdf            # Ignored local export — formal STL rulebook
+Rules_Plain_Language.pdf # Ignored local export — natural language rules
 README.md
 ```
 
