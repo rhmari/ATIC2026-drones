@@ -67,6 +67,7 @@ Scenario code is split into reusable pieces:
 ```text
 scenario/core.py                  # ScenarioBase, rules, monitoring, optimizer, report, animation
 scenario/scene.py                 # Scene and Zone data models + Plotly scene geometry
+scenario/plot2d.py                # Static 2D SVG map export
 scenario/scenarios/*.py           # One scenario class per file
 scenario/scenario_simulation.py   # CLI runner
 ```
@@ -92,9 +93,15 @@ Run one scenario:
 python scenario/scenario_simulation.py --scenario crowd_noise_night
 ```
 
+Generate only the static 2D maps:
+
+```bash
+python scenario/scenario_simulation.py --only-2d
+```
+
 Python 3.10+ required. The simulation fetches live building data from OpenStreetMap on startup (~5 seconds). The optimiser runs automatically after the buildings load (~5–10 seconds).
 
-The main simulation opens an interactive Plotly page in your browser and prints a compliance table. The scenario runner writes interactive HTML files to `scenario/output/` and prints the same style of compliance comparison.
+The main simulation opens an interactive Plotly page in your browser and prints a compliance table. The scenario runner writes interactive HTML files to `scenario/output/`, static 2D SVG maps to `scenario/output_2d/`, and prints the same style of compliance comparison.
 
 ---
 

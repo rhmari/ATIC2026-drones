@@ -20,6 +20,12 @@ Run one scenario and open it:
 python scenario/scenario_simulation.py --scenario crowd_noise_night --show
 ```
 
+Generate only the static 2D maps:
+
+```bash
+python scenario/scenario_simulation.py --only-2d
+```
+
 Structure:
 
 - `scene.py`: reusable map primitives, zones, scene geometry, and Plotly scene drawing.
@@ -34,3 +40,7 @@ Available scenarios:
 - `battery_abort`: restricted airspace plus battery-triggered safe landing instead of completing the delivery.
 
 The generated HTML files are written to `scenario/output/`.
+
+Static 2D SVG maps are also written to `scenario/output_2d/`. These show only
+the world, rule areas, naive trajectory, and compliant trajectory, without the
+interactive Plotly view.

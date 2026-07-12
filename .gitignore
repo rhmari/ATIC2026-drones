@@ -33,3 +33,5 @@ desktop.ini
 # Output files (large, generated)
 *.html
 *.pdf
+scenario/output/
+scenario/output_2d/

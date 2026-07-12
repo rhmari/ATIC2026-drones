@@ -19,11 +19,12 @@ def main():
     parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent / "output"))
     parser.add_argument("--show", action="store_true", help="Open the Plotly figure in a browser.")
     parser.add_argument("--no-opt", action="store_true", help="Use handcrafted compliant paths instead of scipy optimization.")
+    parser.add_argument("--only-2d", action="store_true", help="Write only the static 2D SVG maps, skipping HTML generation.")
     args = parser.parse_args()
 
     selected = scenarios.values() if args.scenario == "all" else [scenarios[args.scenario]]
     for scenario in selected:
-        scenario.run(Path(args.output_dir), show=args.show, no_opt=args.no_opt)
+        scenario.run(Path(args.output_dir), show=args.show, no_opt=args.no_opt, write_html=not args.only_2d)
 
 
 if __name__ == "__main__":

@@ -550,7 +550,7 @@ class ScenarioBase:
         print(f"  Overall compliant: {opt_all_ok.sum():>4}/{self.t_points} ({100 * opt_all_ok.mean():.1f}%)")
         print("=" * 88 + "\n")
 
-    def run(self, out_dir: Path, show: bool = False, no_opt: bool = False):
+    def run(self, out_dir: Path, show: bool = False, no_opt: bool = False, write_html: bool = True):
         print(f"\nRunning {self.key} ...")
         if not SCIPY_OK:
             print("  scipy not found: using the handcrafted compliant fallback path.")
@@ -566,20 +566,27 @@ class ScenarioBase:
 
         self.print_report(naive_results, naive_all_ok, opt_results, opt_all_ok, opt_source)
 
-        fig = self.build_figure(
-            traj_naive,
-            traj_opt,
-            naive_results,
-            naive_all_ok,
-            naive_colors,
-            opt_results,
-            opt_colors,
-            opt_source,
-        )
+        from .plot2d import save_2d_plot
 
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"{self.key}.html"
-        fig.write_html(str(out_path), include_plotlyjs=True)
-        print(f"  wrote {out_path}")
-        if show:
-            fig.show()
+        plot2d_path = out_dir.parent / "output_2d" / f"{self.key}.svg"
+        save_2d_plot(self.title, self.scene, self.rules, traj_naive, traj_opt, opt_source, plot2d_path)
+        print(f"  wrote {plot2d_path}")
+
+        if write_html:
+            fig = self.build_figure(
+                traj_naive,
+                traj_opt,
+                naive_results,
+                naive_all_ok,
+                naive_colors,
+                opt_results,
+                opt_colors,
+                opt_source,
+            )
+
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"{self.key}.html"
+            fig.write_html(str(out_path), include_plotlyjs=True)
+            print(f"  wrote {out_path}")
+            if show:
+                fig.show()
