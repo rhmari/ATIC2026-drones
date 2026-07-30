@@ -33,5 +33,11 @@ desktop.ini
 # Output files (large, generated)
 *.html
 *.pdf
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
 scenario/output/
 scenario/output_2d/

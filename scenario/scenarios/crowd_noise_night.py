@@ -19,7 +19,7 @@ class CrowdNoiseNightScenario(ScenarioBase):
     mission_time = 180.0
     noise_base = 50.0
     noise_slope = 1.8
-    n_free = 4
+    n_free = 3
     penalty_weight = 20.0
 
     def build_rules(self) -> list[Rule]:

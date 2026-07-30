@@ -53,6 +53,9 @@ class ScenarioBase:
     t_points = 360
     t_opt = 90
     penalty_weight = 18.0
+    robustness_margin = 1e-3
+    constraint_tolerance = 1e-6
+    rule_margins: dict[str, float] = {}
 
     def __init__(self):
         self.scene = self.build_scene()
@@ -114,8 +117,14 @@ class ScenarioBase:
         return self.trajectory_from_waypoints(wps, n_points, self.scene.opt_hold_fraction)
 
     def make_initial_params(self) -> np.ndarray:
-        seed = self.catmull_rom(self.scene.fallback_wps, self.n_free + 2)
-        pts = seed[1:-1].copy()
+        # Prefer an exact representation of the verified fallback whenever its
+        # number of intermediate waypoints matches the optimisation model.
+        # This gives the constrained solver a strictly feasible initial point.
+        if len(self.scene.fallback_wps) == self.n_free + 2:
+            pts = np.array(self.scene.fallback_wps[1:-1], dtype=float)
+        else:
+            seed = self.catmull_rom(self.scene.fallback_wps, self.n_free + 2)
+            pts = seed[1:-1].copy()
         pts[:, 2] = np.clip(pts[:, 2], 8.0, self.altitude_max - 2.0)
         return pts.flatten()
 
@@ -243,8 +252,43 @@ class ScenarioBase:
 
     def objective(self, params: np.ndarray, policy: Policy) -> float:
         traj = self.make_trajectory_from_free(params, self.t_opt)
-        path_len = float(np.sum(np.linalg.norm(np.diff(traj, axis=0), axis=1)))
+        path_len = self.path_length(traj)
         return path_len + self.penalty_weight * self.violation_depth(traj, policy)
+
+    @staticmethod
+    def path_length(traj: np.ndarray) -> float:
+        return float(np.sum(np.linalg.norm(np.diff(traj, axis=0), axis=1)))
+
+    def sampled_robustness_constraints(self, params: np.ndarray, policy: Policy) -> np.ndarray:
+        """Return monitor-grid STL robustness values for all selected rules.
+
+        SLSQP treats every returned component as a separate inequality constraint.
+        An inactive conditional rule has infinite robustness in the monitor; it is
+        omitted because it imposes no constraint at that sample.
+        """
+        # Use the same 360-sample grid as the final monitor. Optimising on a
+        # coarser grid can miss a spline incursion between constraint samples.
+        traj = self.make_trajectory_from_free(params, self.t_points)
+        sig = self.compute_signals(traj, policy)
+        values = []
+        for rule in self.rules:
+            rob = self.robustness(rule, traj, sig)
+            values.append(rob[np.isfinite(rob)])
+        return np.concatenate(values) if values else np.array([1.0])
+
+    def constraint_residuals(self, params: np.ndarray, policy: Policy) -> np.ndarray:
+        """STL constraint residuals after applying per-rule safety margins."""
+        traj = self.make_trajectory_from_free(params, self.t_points)
+        sig = self.compute_signals(traj, policy)
+        values = []
+        for rule in self.rules:
+            rob = self.robustness(rule, traj, sig)
+            margin = self.rule_margins.get(rule.id, self.robustness_margin)
+            values.append(rob[np.isfinite(rob)] - margin)
+        return np.concatenate(values) if values else np.array([1.0])
+
+    def hard_stl_objective(self, params: np.ndarray) -> float:
+        return self.path_length(self.make_trajectory_from_free(params, self.t_opt))
 
     def optimized_trajectory(self, no_opt: bool = False) -> tuple[np.ndarray, str]:
         fallback = self.trajectory_from_waypoints(
@@ -261,17 +305,46 @@ class ScenarioBase:
             bounds.extend([(8.0, x_max - 8.0), (8.0, y_max - 8.0), (8.0, self.altitude_max - 2.0)])
 
         opt_policy = Policy(light_after_night=True)
+
+        # Phase 1: restore sampled feasibility from the waypoint seed. The
+        # fallback path provides the intended safe homotopy class, but its
+        # resampled waypoint representation can initially violate speed limits.
+        initial = self.make_initial_params()
+        if np.min(self.constraint_residuals(initial, opt_policy)) >= 0.0:
+            restore_x = initial
+        else:
+            restore = sp_minimize(
+                lambda p: self.objective(p, opt_policy),
+                initial,
+                method="L-BFGS-B",
+                bounds=bounds,
+                options=dict(maxiter=1600, ftol=1e-9, gtol=1e-6),
+            )
+            restore_x = restore.x
+
+        # Phase 2: minimise path length with all sampled rule constraints hard.
+        constraints = {
+            "type": "ineq",
+            "fun": lambda p: self.constraint_residuals(p, opt_policy),
+        }
         res = sp_minimize(
-            lambda p: self.objective(p, opt_policy),
-            self.make_initial_params(),
-            method="L-BFGS-B",
+            self.hard_stl_objective,
+            restore_x,
+            method="SLSQP",
             bounds=bounds,
-            options=dict(maxiter=1600, ftol=1e-9, gtol=1e-6),
+            constraints=constraints,
+            options=dict(maxiter=1600, ftol=1e-8, disp=False),
         )
         candidate = self.make_trajectory_from_free(res.x, self.t_points)
+        full_depth = self.violation_depth(candidate, opt_policy)
+        full_min = float(np.min(self.constraint_residuals(res.x, opt_policy)))
 
-        if self.violation_depth(candidate, opt_policy) <= self.violation_depth(fallback, opt_policy):
-            return candidate, f"STL optimizer ({res.nit} iterations)"
+        if (
+            res.success
+            and full_depth <= self.constraint_tolerance
+            and full_min >= -self.constraint_tolerance
+        ):
+            return candidate, f"sampled STL constraints ({res.nit} iterations)"
         return fallback, "fallback compliant path"
 
     def build_figure(
@@ -569,7 +642,16 @@ class ScenarioBase:
         from .plot2d import save_2d_plot
 
         plot2d_path = out_dir.parent / "output_2d" / f"{self.key}.svg"
-        save_2d_plot(self.title, self.scene, self.rules, traj_naive, traj_opt, opt_source, plot2d_path)
+        save_2d_plot(
+            self.title,
+            self.scene,
+            self.rules,
+            traj_naive,
+            traj_opt,
+            opt_source,
+            plot2d_path,
+            crowd_buffer=self.rule_margins.get("REQ-PROX-01", 0.0),
+        )
         print(f"  wrote {plot2d_path}")
 
         if write_html:

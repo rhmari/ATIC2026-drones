@@ -1,2 +1,1 @@
-"""Reusable drone-rulebook scenario package."""
-
+"""Reusable sampled rule-constrained drone-planning scenarios."""

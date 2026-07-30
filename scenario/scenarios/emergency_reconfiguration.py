@@ -15,7 +15,7 @@ class EmergencyReconfigurationScenario(ScenarioBase):
     key = "emergency_reconfiguration"
     title = "Scenario 2 - Dynamic Emergency Zone and Static No-Fly Zone"
     mission_time = 170.0
-    n_free = 4
+    n_free = 3
     penalty_weight = 24.0
 
     def build_rules(self) -> list[Rule]:

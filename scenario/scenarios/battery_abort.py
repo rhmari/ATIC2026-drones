@@ -18,7 +18,7 @@ class BatteryAbortScenario(ScenarioBase):
     battery_start = 45.0
     battery_end = 8.0
     battery_warn = 20.0
-    n_free = 3
+    n_free = 2
     penalty_weight = 26.0
 
     def build_rules(self) -> list[Rule]:
