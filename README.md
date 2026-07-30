@@ -14,26 +14,26 @@ The solver operates in two stages:
 
 1. If the fallback-derived waypoint seed is infeasible, L-BFGS-B minimises a temporary restoration objective on a 90-sample trace:
 
-   $$
+   ```math
    J_{\mathrm{restore}}(\theta)
    = L(\tau_\theta)
-   + \lambda\sum_{r \in \mathcal{R}}\sum_{k=1}^{90}
-   \max\!\left(0,-\rho_r(\tau_\theta,t_k)\right).
-   $$
+   + \lambda \sum_{r \in \mathcal{R}} \sum_{k=1}^{90}
+     \max\!\left(0, -\rho_r(\tau_\theta, t_k)\right)
+   ```
 
    This soft penalty only finds a useful starting point; it is not the safety guarantee.
 
 2. SLSQP then minimises path length subject to hard robustness constraints on the full monitoring grid:
 
-   $$
+   ```math
    \begin{aligned}
    \min_{\theta}\quad & L(\tau_\theta) \\
-   \text{subject to}\quad & \rho_r(\tau_\theta,t_k) \ge \varepsilon_r, \\
-   & r \in \mathcal{R}, \qquad k \in \{1,\ldots,360\}.
+   \text{subject to}\quad & \rho_r(\tau_\theta, t_k) \ge \varepsilon_r, \\
+   & r \in \mathcal{R}, \qquad k \in \{1, \ldots, 360\}.
    \end{aligned}
-   $$
+   ```
 
-   for every selected rule and active sample. The default margin is `1e-3` in the rule's native robustness unit. The candidate is independently monitored again and accepted only if all constraints pass; otherwise the fallback route is returned.
+   The default margin is `1e-3` in the rule's native robustness unit. The candidate is independently monitored again and accepted only if all constraints pass; otherwise the fallback route is returned.
 
 This is sampled nonlinear trajectory optimisation. It does not prove continuous-time satisfaction between samples, global optimality, aircraft dynamic feasibility, or forward invariance.
 
