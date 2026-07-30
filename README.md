@@ -1,5 +1,7 @@
 # Formal Rulebook for Autonomous Drone Operations Simulation
 
+This project was developed for the **Advanced Topics in Control (ATIC)** course at **ETH Zürich** by Mamoun Rhmari Tlemcani, Hadrien Legros, Ben Youssef Belkis, and Saad Lahlou.
+
 This repository is a research prototype for planning short drone trajectories that satisfy selected, scenario-defined operational rules. It combines a signed-robustness monitor with a two-stage nonlinear waypoint optimiser and three synthetic case studies.
 
 The full formal rulebook, its legal-source annotations, and the accompanying report are private and are intentionally not included in this repository. The public code retains stable `REQ-*` identifiers and compact scenario abstractions only, so that the examples remain reproducible without presenting the rulebook as a public legal reference.
